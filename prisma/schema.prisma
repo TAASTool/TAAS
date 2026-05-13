@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── PLATFORM ───────────────────────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    TenantUser[]
+  projects Project[]
+}
+
+model PlatformUser {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  name      String
+  role      PlatformRole @default(ADMIN)
+  password  String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+model Template {
+  id          String            @id @default(cuid())
+  name        String
+  category    TemplateCategory
+  description String?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  versions TemplateVersion[]
+}
+
+enum TemplateCategory {
+  HR
+  FIN
+  INKOOP
+  ALG
+}
+
+model TemplateVersion {
+  id         String   @id @default(cuid())
+  templateId String
+  version    String
+  changelog  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  template Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  steps    TemplateStep[]
+  flows    Flow[]         @relation("SourceTemplate")
+}
+
+model TemplateStep {
+  id                String  @id @default(cuid())
+  templateVersionId String
+  order             Int
+  title             String
+  instruction       String
+  expectedResult    String?
+
+  templateVersion TemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+}
+
+// ─── TENANT ─────────────────────────────────────────────────────────────────
+
+model TenantUser {
+  id        String       @id @default(cuid())
+  tenantId  String
+  email     String
+  name      String
+  password  String
+  roles     TenantRole[]
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedSteps    FlowStepAssignee[]
+  runStepAssignees RunStepAssignee[]
+  tasks            Task[]
+  issuesCreated    Issue[]            @relation("IssueCreator")
+  issueComments    IssueComment[]
+  auditLogs        AuditLog[]
+  reportExports    ReportExport[]
+
+  @@unique([tenantId, email])
+}
+
+enum TenantRole {
+  TENANT_ADMIN
+  SCRIPT_WRITER
+  TESTER
+  FUNCTIONAL_MANAGER
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  type        ProjectType   @default(IMPLEMENTATION)
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phases TestPhase[]
+}
+
+enum ProjectType {
+  IMPLEMENTATION
+  OPTIMIZATION
+  RELEASE
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model TestPhase {
+  id        String      @id @default(cuid())
+  projectId String
+  tenantId  String
+  name      PhaseType
+  order     Int         @default(0)
+  status    PhaseStatus @default(DRAFT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  flows   Flow[]
+}
+
+enum PhaseType {
+  FAT
+  GAT
+  PAT
+}
+
+enum PhaseStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ACCEPTED
+  REJECTED
+}
+
+model Flow {
+  id                      String   @id @default(cuid())
+  phaseId                 String
+  tenantId                String
+  name                    String
+  description             String?
+  sourceTemplateVersionId String?
+  sourceFlowVersionId     String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  phase          TestPhase        @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  sourceTemplate TemplateVersion? @relation("SourceTemplate", fields: [sourceTemplateVersionId], references: [id])
+  versions       FlowVersion[]
+}
+
+model FlowVersion {
+  id        String   @id @default(cuid())
+  flowId    String
+  tenantId  String
+  version   String   @default("v1.0")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  flow  Flow       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  steps FlowStep[]
+  runs  TestRun[]
+}
+
+model FlowStep {
+  id             String   @id @default(cuid())
+  flowVersionId  String
+  tenantId       String
+  order          Int
+  title          String
+  instruction    String
+  expectedResult String?
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  flowVersion FlowVersion        @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+  assignees   FlowStepAssignee[]
+}
+
+model FlowStepAssignee {
+  id         String @id @default(cuid())
+  flowStepId String
+  userId     String
+  tenantId   String
+
+  flowStep FlowStep   @relation(fields: [flowStepId], references: [id], onDelete: Cascade)
+  user     TenantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([flowStepId, userId])
+}
+
+model TestRun {
+  id            String    @id @default(cuid())
+  flowVersionId String
+  phaseId       String
+  projectId     String
+  tenantId      String
+  name          String
+  status        RunStatus @default(DRAFT)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  startedById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  flowVersion FlowVersion @relation(fields: [flowVersionId], references: [id])
+  steps       RunStep[]
+}
+
+enum RunStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  ACCEPTED
+  REJECTED
+}
+
+model RunStep {
+  id             String     @id @default(cuid())
+  runId          String
+  tenantId       String
+  order          Int
+  title          String
+  instruction    String
+  expectedResult String?
+  status         StepStatus @default(PENDING)
+  result         String?
+  notes          String?
+  doneById       String?
+  doneAt         DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  run       TestRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  assignees RunStepAssignee[]
+  issues    Issue[]
+  tasks     Task[]
+}
+
+enum StepStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  BLOCKED
+}
+
+model RunStepAssignee {
+  id        String @id @default(cuid())
+  runStepId String
+  userId    String
+  tenantId  String
+
+  runStep RunStep    @relation(fields: [runStepId], references: [id], onDelete: Cascade)
+  user    TenantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runStepId, userId])
+}
+
+model Issue {
+  id                  String      @id @default(cuid())
+  runStepId           String
+  tenantId            String
+  title               String
+  description         String
+  type                IssueType
+  status              IssueStatus @default(NEW)
+  impact              IssueImpact @default(MEDIUM)
+  hasWorkaround       Boolean     @default(false)
+  workaroundNote      String?
+  businessAccepted    Boolean     @default(false)
+  businessAcceptNote  String?
+  sourceIssueId       String?
+  retestRequired      Boolean     @default(false)
+  createdById         String
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  runStep    RunStep        @relation(fields: [runStepId], references: [id], onDelete: Cascade)
+  createdBy  TenantUser     @relation("IssueCreator", fields: [createdById], references: [id])
+  comments   IssueComment[]
+  attachments IssueAttachment[]
+  tasks      Task[]
+}
+
+enum IssueType {
+  BUG
+  WISH
+  BLOCKER
+}
+
+enum IssueStatus {
+  NEW
+  IN_PROGRESS
+  QUESTION
+  RESOLVED
+  REJECTED
+}
+
+enum IssueImpact {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model IssueComment {
+  id        String   @id @default(cuid())
+  issueId   String
+  tenantId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  issue Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  user  TenantUser @relation(fields: [userId], references: [id])
+}
+
+model IssueAttachment {
+  id        String   @id @default(cuid())
+  issueId   String
+  tenantId  String
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  tenantId    String
+  userId      String
+  type        TaskType
+  title       String
+  description String?
+  status      TaskStatus @default(OPEN)
+  runStepId   String?
+  issueId     String?
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user    TenantUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runStep RunStep?   @relation(fields: [runStepId], references: [id])
+  issue   Issue?     @relation(fields: [issueId], references: [id])
+}
+
+enum TaskType {
+  STEP_EXECUTION
+  RETEST
+  QUESTION
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  user TenantUser @relation(fields: [userId], references: [id])
+}
+
+model ReportExport {
+  id          String     @id @default(cuid())
+  tenantId    String
+  type        ReportType
+  entityId    String
+  entityName  String
+  url         String?
+  metadata    Json?
+  createdById String
+  createdAt   DateTime   @default(now())
+
+  createdBy TenantUser @relation(fields: [createdById], references: [id])
+}
+
+enum ReportType {
+  PHASE_REPORT
+  FLOW_REPORT
+  ISSUE_LOG
+  GONOGO_SUMMARY
+}
