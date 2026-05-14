@@ -44,10 +44,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json();
 
-  await prisma.testPhase.updateMany({
-    where: { id, tenantId },
-    data: { status: body.status },
-  });
+  const data: Record<string, unknown> = {};
+  if (body.status !== undefined) data.status = body.status;
+  if (body.startDate !== undefined) data.startDate = body.startDate ? new Date(body.startDate) : null;
+  if (body.endDate !== undefined) data.endDate = body.endDate ? new Date(body.endDate) : null;
+
+  await prisma.testPhase.updateMany({ where: { id, tenantId }, data });
   return NextResponse.json({ success: true });
 }
 

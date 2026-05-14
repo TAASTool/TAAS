@@ -146,6 +146,8 @@ model TestPhase {
   title     String?
   order     Int         @default(0)
   status    PhaseStatus @default(DRAFT)
+  startDate DateTime?
+  endDate   DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -176,6 +178,8 @@ model Flow {
   status                  FlowStatus @default(ACTIVE)
   sourceTemplateVersionId String?
   sourceFlowVersionId     String?
+  scheduledStart          DateTime?
+  scheduledEnd            DateTime?
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
 

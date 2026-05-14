@@ -53,6 +53,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.name !== undefined) data.name = body.name;
   if (body.description !== undefined) data.description = body.description;
   if (body.status !== undefined) data.status = body.status;
+  if (body.scheduledStart !== undefined) data.scheduledStart = body.scheduledStart ? new Date(body.scheduledStart) : null;
+  if (body.scheduledEnd !== undefined) data.scheduledEnd = body.scheduledEnd ? new Date(body.scheduledEnd) : null;
 
   await prisma.flow.updateMany({ where: { id, tenantId }, data });
   return NextResponse.json({ success: true });

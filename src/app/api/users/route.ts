@@ -12,7 +12,7 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const result = await requireTenantAuth(["TENANT_ADMIN", "SCRIPT_WRITER"]);
+  const result = await requireTenantAuth(["TENANT_ADMIN", "SCRIPT_WRITER", "FUNCTIONAL_MANAGER"]);
   if ("error" in result) return result.error;
   const { tenantId } = result.context;
 
