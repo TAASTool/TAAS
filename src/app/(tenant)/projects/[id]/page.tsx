@@ -13,6 +13,8 @@ export default function ProjectPage() {
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [phaseForm, setPhaseForm] = useState({ name: "FAT", order: 0 });
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ phaseId: string; name: string } | null>(null);
+  const [confirmClose, setConfirmClose] = useState<{ phaseId: string; name: string } | null>(null);
 
   useEffect(() => { load(); }, [id]);
 
@@ -33,6 +35,22 @@ export default function ProjectPage() {
     });
     if (res.ok) { setShowAddPhase(false); load(); }
     setSaving(false);
+  }
+
+  async function closePhase(phaseId: string) {
+    await fetch(`/api/phases/${phaseId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "COMPLETED" }),
+    });
+    setConfirmClose(null);
+    load();
+  }
+
+  async function deletePhase(phaseId: string) {
+    await fetch(`/api/phases/${phaseId}`, { method: "DELETE" });
+    setConfirmDelete(null);
+    load();
   }
 
   const existingPhaseNames = project?.phases?.map((p: any) => p.name) ?? [];
@@ -78,12 +96,43 @@ export default function ProjectPage() {
                     <option key={ph} value={ph}>{ph} — {PHASE_DESCRIPTIONS[ph]}</option>
                   ))}
                 </select>
+                {phaseForm.name === "GAT" && !existingPhaseNames.includes("FAT") && (
+                  <p className="text-xs text-primary-600 mt-1">FAT wordt automatisch ook aangemaakt.</p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? "Toevoegen..." : "Toevoegen"}</button>
                 <button type="button" onClick={() => setShowAddPhase(false)} className="btn-secondary flex-1">Annuleren</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bevestiging afsluiten fase */}
+      {confirmClose && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="font-semibold text-lg mb-2">Fase afsluiten</h2>
+            <p className="text-slate-500 text-sm mb-4">Weet je zeker dat je fase <strong>{confirmClose.name}</strong> wilt afsluiten? De status wordt gezet op COMPLETED.</p>
+            <div className="flex gap-3">
+              <button onClick={() => closePhase(confirmClose.phaseId)} className="btn-primary flex-1">Afsluiten</button>
+              <button onClick={() => setConfirmClose(null)} className="btn-secondary flex-1">Annuleren</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bevestiging verwijderen fase */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="font-semibold text-lg mb-2 text-red-700">Fase verwijderen</h2>
+            <p className="text-slate-500 text-sm mb-4">Weet je zeker dat je fase <strong>{confirmDelete.name}</strong> wilt verwijderen? Alle flows, runs en bevindingen in deze fase worden ook verwijderd. Dit kan niet ongedaan worden gemaakt.</p>
+            <div className="flex gap-3">
+              <button onClick={() => deletePhase(confirmDelete.phaseId)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex-1">Definitief verwijderen</button>
+              <button onClick={() => setConfirmDelete(null)} className="btn-secondary flex-1">Annuleren</button>
+            </div>
           </div>
         </div>
       )}
@@ -108,11 +157,31 @@ export default function ProjectPage() {
                   <div className="text-xs text-slate-400">{phase.flows?.length ?? 0} flow{phase.flows?.length !== 1 ? "s" : ""}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className={`badge ${STATUS_COLORS[phase.status]}`}>{phase.status}</span>
                 <Link href={`/projects/${id}/phases/${phase.id}`} className="btn-secondary text-xs">
                   Openen →
                 </Link>
+                {phase.status !== "COMPLETED" && phase.status !== "ACCEPTED" && (
+                  <button
+                    onClick={() => setConfirmClose({ phaseId: phase.id, name: phase.name })}
+                    title="Fase afsluiten"
+                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={() => setConfirmDelete({ phaseId: phase.id, name: phase.name })}
+                  title="Fase verwijderen"
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
             {phase.flows?.length > 0 && (

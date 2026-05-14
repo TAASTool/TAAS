@@ -48,6 +48,7 @@ export const STATUS_COLORS: Record<string, string> = {
   PASSED: "bg-green-100 text-green-700",
   FAILED: "bg-red-100 text-red-700",
   BLOCKED: "bg-orange-100 text-orange-700",
+  CLOSED: "bg-slate-200 text-slate-600",
   NEW: "bg-blue-100 text-blue-700",
   QUESTION: "bg-purple-100 text-purple-700",
   RESOLVED: "bg-green-100 text-green-700",

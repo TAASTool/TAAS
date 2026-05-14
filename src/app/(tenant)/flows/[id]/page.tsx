@@ -155,6 +155,10 @@ export default function FlowBuilderPage() {
   const [newStepForm, setNewStepForm] = useState<StepForm>(EMPTY_NEW_FORM);
   const [saving, setSaving] = useState(false);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ name: "", description: "" });
+  const [savingMeta, setSavingMeta] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -175,6 +179,7 @@ export default function FlowBuilderPage() {
   const activeVersion = flow?.versions?.find((v: any) => v.isActive) ?? flow?.versions?.[0];
   const steps = (activeVersion?.steps ?? []) as any[];
   const hasRuns = (activeVersion?._count?.runs ?? 0) > 0;
+  const isClosed = flow?.status === "CLOSED";
 
   async function saveStep(stepId: string) {
     setSaving(true);
@@ -238,6 +243,30 @@ export default function FlowBuilderPage() {
     load();
   }
 
+  async function saveMeta() {
+    setSavingMeta(true);
+    await fetch(`/api/flows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: metaForm.name, description: metaForm.description }),
+    });
+    setEditingMeta(false);
+    await load();
+    setSavingMeta(false);
+  }
+
+  async function closeFlow() {
+    setSaving(true);
+    await fetch(`/api/flows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CLOSED" }),
+    });
+    setConfirmClose(false);
+    await load();
+    setSaving(false);
+  }
+
   function startInsert(pos: InsertPosition) {
     setInsertPos(pos);
     setNewStepForm(EMPTY_NEW_FORM);
@@ -281,230 +310,319 @@ export default function FlowBuilderPage() {
       </div>
 
       <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-slate-900">{flow.name}</h1>
-            {activeVersion && (
-              <span className="text-sm text-slate-400 bg-slate-100 px-2 py-1 rounded">{activeVersion.version}</span>
-            )}
-          </div>
-          {flow.description && <p className="text-slate-500 text-sm">{flow.description}</p>}
-          {hasRuns && (
-            <div className="flex items-center gap-2 mt-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Er zijn runs op deze versie — stappen zijn alleen-lezen. Maak een nieuwe versie om te bewerken.
+        <div className="flex-1 min-w-0 mr-4">
+          {editingMeta ? (
+            <div className="space-y-2 max-w-lg">
+              <input
+                className="input text-xl font-bold"
+                value={metaForm.name}
+                onChange={(e) => setMetaForm({ ...metaForm, name: e.target.value })}
+                placeholder="Flow naam"
+              />
+              <textarea
+                className="input resize-none text-sm"
+                rows={2}
+                value={metaForm.description}
+                onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })}
+                placeholder="Beschrijving (optioneel)"
+              />
+              <div className="flex gap-2">
+                <button onClick={saveMeta} disabled={savingMeta || !metaForm.name} className="btn-primary text-sm">
+                  {savingMeta ? "Opslaan..." : "Opslaan"}
+                </button>
+                <button onClick={() => setEditingMeta(false)} className="btn-secondary text-sm">Annuleren</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-slate-900">{flow.name}</h1>
+                {activeVersion && (
+                  <span className="text-sm text-slate-400 bg-slate-100 px-2 py-1 rounded">{activeVersion.version}</span>
+                )}
+                {isClosed && <span className="text-sm bg-slate-200 text-slate-600 px-2 py-1 rounded">Afgesloten</span>}
+                {!isClosed && (
+                  <button
+                    onClick={() => { setMetaForm({ name: flow.name, description: flow.description ?? "" }); setEditingMeta(true); }}
+                    title="Naam en beschrijving bewerken"
+                    className="p-1 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {flow.description && <p className="text-slate-500 text-sm">{flow.description}</p>}
+              {hasRuns && !isClosed && (
+                <div className="flex items-center gap-2 mt-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Er zijn runs op deze versie — stappen zijn alleen-lezen. Maak een nieuwe versie om te bewerken.
+                </div>
+              )}
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          {hasRuns && (
-            <button onClick={createNewVersion} className="btn-secondary text-sm">Nieuwe versie</button>
-          )}
-          {activeVersion && (
-            <Link
-              href={`/runs/new?versionId=${activeVersion.id}&flowName=${encodeURIComponent(flow.name)}`}
-              className="btn-primary text-sm"
+        {!isClosed && (
+          <div className="flex gap-2 shrink-0">
+            {hasRuns && (
+              <button onClick={createNewVersion} className="btn-secondary text-sm">Nieuwe versie</button>
+            )}
+            {activeVersion && (
+              <Link
+                href={`/runs/new?versionId=${activeVersion.id}&flowName=${encodeURIComponent(flow.name)}`}
+                className="btn-primary text-sm"
+              >
+                Run starten
+              </Link>
+            )}
+            <button
+              onClick={() => setConfirmClose(true)}
+              title="Flow afsluiten"
+              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded border border-slate-200"
             >
-              Run starten
-            </Link>
-          )}
-        </div>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Bevestiging flow afsluiten */}
+      {confirmClose && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="font-semibold text-lg mb-2">Flow afsluiten</h2>
+            <p className="text-slate-500 text-sm mb-4">Weet je zeker dat je <strong>{flow.name}</strong> wilt afsluiten? Alle openstaande taken bij testers worden verwijderd.</p>
+            <div className="flex gap-3">
+              <button onClick={closeFlow} disabled={saving} className="btn-primary flex-1">{saving ? "Afsluiten..." : "Afsluiten"}</button>
+              <button onClick={() => setConfirmClose(false)} className="btn-secondary flex-1">Annuleren</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Steps list */}
-      <div className="max-w-3xl space-y-1">
-
-        {steps.length === 0 && !insertPos && (
-          <div className="card p-8 text-center text-slate-400 text-sm">Nog geen stappen. Voeg de eerste stap toe.</div>
-        )}
-
-        {/* Insert BEFORE first step */}
-        {!hasRuns && steps.length > 0 && (
-          insertPos?.type === "before" && insertPos.stepId === steps[0]?.id
-            ? <NewStepForm
-                insertPos={insertPos}
-                form={newStepForm}
-                users={tenantUsers}
-                saving={saving}
-                onAdd={addStep}
-                onCancel={() => setInsertPos(null)}
-                onFormChange={setNewStepForm}
-                onToggle={toggleInNew}
-              />
-            : <InserterButton insertPos={insertPos} pos={{ type: "before", stepId: steps[0]?.id }} onInsert={startInsert} />
-        )}
-
-        {steps.map((step: any, index: number) => (
-          <div key={step.id}>
-            {editingStep === step.id ? (
-              /* ── Edit form ── */
-              <div className="card p-5 border-2 border-primary-300">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Titel</label>
-                    <input className="input" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Instructie / Testscript</label>
-                    <textarea className="input resize-none" rows={4} value={editForm.instruction} onChange={(e) => setEditForm({ ...editForm, instruction: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Verwacht resultaat</label>
-                    <textarea className="input resize-none" rows={2} value={editForm.expectedResult || ""} onChange={(e) => setEditForm({ ...editForm, expectedResult: e.target.value })} />
-                  </div>
-                  <AssigneePills users={tenantUsers} selected={editForm.assigneeIds ?? []} onToggle={toggleInEdit} />
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={() => saveStep(step.id)} disabled={saving} className="btn-primary text-sm">
-                      {saving ? "Opslaan..." : "Opslaan"}
-                    </button>
-                    <button onClick={() => setEditingStep(null)} className="btn-secondary text-sm">Annuleren</button>
-                  </div>
+      {isClosed ? (
+        <div className="max-w-3xl space-y-1">
+          {steps.length === 0 ? (
+            <div className="card p-8 text-center text-slate-400 text-sm">Geen stappen.</div>
+          ) : steps.map((step: any, index: number) => (
+            <div key={step.id} className="card">
+              <div className="flex items-start p-4 gap-3">
+                <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-sm flex items-center justify-center shrink-0">
+                  {index + 1}
                 </div>
-              </div>
-            ) : (
-              /* ── Step card ── */
-              <div className="card">
-                <div className="flex items-start p-4 gap-3">
-                  {/* Reorder buttons */}
-                  {!hasRuns && (
-                    <div className="flex flex-col gap-0.5 shrink-0 mt-0.5">
-                      <button
-                        onClick={() => moveStep(step.id, "up")}
-                        disabled={index === 0}
-                        title="Omhoog"
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => moveStep(step.id, "down")}
-                        disabled={index === steps.length - 1}
-                        title="Omlaag"
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Step number */}
-                  <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 font-bold text-sm flex items-center justify-center shrink-0">
-                    {index + 1}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-slate-900">{step.title}</h4>
-                    <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">{step.instruction}</p>
-                    {step.expectedResult && (
-                      <div className="mt-1.5 text-sm">
-                        <span className="font-medium text-slate-400">Verwacht: </span>
-                        <span className="text-slate-600">{step.expectedResult}</span>
-                      </div>
-                    )}
-                    {step.assignees?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {step.assignees.map((a: any) => (
-                          <span key={a.id} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-200">
-                            {a.user.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Edit / Delete */}
-                  {!hasRuns && (
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => startEdit(step)}
-                        title="Bewerken"
-                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => deleteStep(step.id)}
-                        title="Verwijderen"
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-slate-900">{step.title}</h4>
+                  <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">{step.instruction}</p>
+                  {step.expectedResult && (
+                    <div className="mt-1.5 text-sm">
+                      <span className="font-medium text-slate-400">Verwacht: </span>
+                      <span className="text-slate-600">{step.expectedResult}</span>
                     </div>
                   )}
                 </div>
               </div>
-            )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="max-w-3xl space-y-1">
 
-            {/* Insert AFTER this step / BEFORE next step */}
-            {!hasRuns && (
-              insertPos?.type === "after" && insertPos.stepId === step.id
-                ? <div className="mt-1">
-                    <NewStepForm
-                      insertPos={insertPos}
-                      form={newStepForm}
-                      users={tenantUsers}
-                      saving={saving}
-                      onAdd={addStep}
-                      onCancel={() => setInsertPos(null)}
-                      onFormChange={setNewStepForm}
-                      onToggle={toggleInNew}
-                    />
-                  </div>
-                : insertPos?.type === "before" && insertPos.stepId === steps[index + 1]?.id
-                ? <div className="mt-1">
-                    <NewStepForm
-                      insertPos={insertPos}
-                      form={newStepForm}
-                      users={tenantUsers}
-                      saving={saving}
-                      onAdd={addStep}
-                      onCancel={() => setInsertPos(null)}
-                      onFormChange={setNewStepForm}
-                      onToggle={toggleInNew}
-                    />
-                  </div>
-                : <InserterButton insertPos={insertPos} pos={{ type: "after", stepId: step.id }} onInsert={startInsert} />
-            )}
-          </div>
-        ))}
+          {steps.length === 0 && !insertPos && (
+            <div className="card p-8 text-center text-slate-400 text-sm">Nog geen stappen. Voeg de eerste stap toe.</div>
+          )}
 
-        {/* Add to end */}
-        {!hasRuns && (
-          insertPos?.type === "end"
-            ? <NewStepForm
-                insertPos={insertPos}
-                form={newStepForm}
-                users={tenantUsers}
-                saving={saving}
-                onAdd={addStep}
-                onCancel={() => setInsertPos(null)}
-                onFormChange={setNewStepForm}
-                onToggle={toggleInNew}
-              />
-            : insertPos === null && (
-              <button
-                onClick={() => startInsert({ type: "end" })}
-                className="w-full card p-3 mt-1 text-sm text-slate-400 hover:text-primary-600 hover:border-primary-300 transition-colors flex items-center justify-center gap-2 border-dashed"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                {steps.length === 0 ? "Eerste stap toevoegen" : "Stap aan het einde toevoegen"}
-              </button>
-            )
-        )}
-      </div>
+          {/* Insert BEFORE first step */}
+          {!hasRuns && steps.length > 0 && (
+            insertPos?.type === "before" && insertPos.stepId === steps[0]?.id
+              ? <NewStepForm
+                  insertPos={insertPos}
+                  form={newStepForm}
+                  users={tenantUsers}
+                  saving={saving}
+                  onAdd={addStep}
+                  onCancel={() => setInsertPos(null)}
+                  onFormChange={setNewStepForm}
+                  onToggle={toggleInNew}
+                />
+              : <InserterButton insertPos={insertPos} pos={{ type: "before", stepId: steps[0]?.id }} onInsert={startInsert} />
+          )}
+
+          {steps.map((step: any, index: number) => (
+            <div key={step.id}>
+              {editingStep === step.id ? (
+                /* ── Edit form ── */
+                <div className="card p-5 border-2 border-primary-300">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Titel</label>
+                      <input className="input" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Instructie / Testscript</label>
+                      <textarea className="input resize-none" rows={4} value={editForm.instruction} onChange={(e) => setEditForm({ ...editForm, instruction: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Verwacht resultaat</label>
+                      <textarea className="input resize-none" rows={2} value={editForm.expectedResult || ""} onChange={(e) => setEditForm({ ...editForm, expectedResult: e.target.value })} />
+                    </div>
+                    <AssigneePills users={tenantUsers} selected={editForm.assigneeIds ?? []} onToggle={toggleInEdit} />
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => saveStep(step.id)} disabled={saving} className="btn-primary text-sm">
+                        {saving ? "Opslaan..." : "Opslaan"}
+                      </button>
+                      <button onClick={() => setEditingStep(null)} className="btn-secondary text-sm">Annuleren</button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ── Step card ── */
+                <div className="card">
+                  <div className="flex items-start p-4 gap-3">
+                    {/* Reorder buttons */}
+                    {!hasRuns && (
+                      <div className="flex flex-col gap-0.5 shrink-0 mt-0.5">
+                        <button
+                          onClick={() => moveStep(step.id, "up")}
+                          disabled={index === 0}
+                          title="Omhoog"
+                          className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => moveStep(step.id, "down")}
+                          disabled={index === steps.length - 1}
+                          title="Omlaag"
+                          className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Step number */}
+                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 font-bold text-sm flex items-center justify-center shrink-0">
+                      {index + 1}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-slate-900">{step.title}</h4>
+                      <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">{step.instruction}</p>
+                      {step.expectedResult && (
+                        <div className="mt-1.5 text-sm">
+                          <span className="font-medium text-slate-400">Verwacht: </span>
+                          <span className="text-slate-600">{step.expectedResult}</span>
+                        </div>
+                      )}
+                      {step.assignees?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {step.assignees.map((a: any) => (
+                            <span key={a.id} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-200">
+                              {a.user.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Edit / Delete */}
+                    {!hasRuns && (
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={() => startEdit(step)}
+                          title="Bewerken"
+                          className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => deleteStep(step.id)}
+                          title="Verwijderen"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Insert AFTER this step / BEFORE next step */}
+              {!hasRuns && (
+                insertPos?.type === "after" && insertPos.stepId === step.id
+                  ? <div className="mt-1">
+                      <NewStepForm
+                        insertPos={insertPos}
+                        form={newStepForm}
+                        users={tenantUsers}
+                        saving={saving}
+                        onAdd={addStep}
+                        onCancel={() => setInsertPos(null)}
+                        onFormChange={setNewStepForm}
+                        onToggle={toggleInNew}
+                      />
+                    </div>
+                  : insertPos?.type === "before" && insertPos.stepId === steps[index + 1]?.id
+                  ? <div className="mt-1">
+                      <NewStepForm
+                        insertPos={insertPos}
+                        form={newStepForm}
+                        users={tenantUsers}
+                        saving={saving}
+                        onAdd={addStep}
+                        onCancel={() => setInsertPos(null)}
+                        onFormChange={setNewStepForm}
+                        onToggle={toggleInNew}
+                      />
+                    </div>
+                  : <InserterButton insertPos={insertPos} pos={{ type: "after", stepId: step.id }} onInsert={startInsert} />
+              )}
+            </div>
+          ))}
+
+          {/* Add to end */}
+          {!hasRuns && (
+            insertPos?.type === "end"
+              ? <NewStepForm
+                  insertPos={insertPos}
+                  form={newStepForm}
+                  users={tenantUsers}
+                  saving={saving}
+                  onAdd={addStep}
+                  onCancel={() => setInsertPos(null)}
+                  onFormChange={setNewStepForm}
+                  onToggle={toggleInNew}
+                />
+              : insertPos === null && (
+                <button
+                  onClick={() => startInsert({ type: "end" })}
+                  className="w-full card p-3 mt-1 text-sm text-slate-400 hover:text-primary-600 hover:border-primary-300 transition-colors flex items-center justify-center gap-2 border-dashed"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  {steps.length === 0 ? "Eerste stap toevoegen" : "Stap aan het einde toevoegen"}
+                </button>
+              )
+          )}
+        </div>
+      )}
     </div>
   );
 }
