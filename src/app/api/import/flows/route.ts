@@ -88,6 +88,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const duplicate = await prisma.flow.findFirst({
+      where: { name: group.flowNaam, phaseId: phase.id, tenantId },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `Flow "${group.flowNaam}" bestaat al in fase ${group.fase}. Geef de flow een andere naam of verwijder de bestaande eerst.` },
+        { status: 409 },
+      );
+    }
+
     const flow = await prisma.flow.create({
       data: {
         name: group.flowNaam,

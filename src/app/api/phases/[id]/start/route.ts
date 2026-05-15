@@ -91,28 +91,29 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
       });
     }
 
-    // Maak taken aan voor de eerste stap
+    // Maak taken aan voor de eerste stap (batch — vermijd N+1 per assignee)
     const firstStep = run.steps[0];
     if (firstStep) {
       const firstFlowStep = version.steps.find((s) => s.order === firstStep.order);
-      if (firstFlowStep) {
-        for (const assignee of firstFlowStep.assignees) {
-          const existing = await prisma.task.findFirst({
-            where: { runStepId: firstStep.id, userId: assignee.userId, type: "STEP_EXECUTION", status: { not: "DONE" } },
+      if (firstFlowStep && firstFlowStep.assignees.length > 0) {
+        const existingUserIds = await prisma.task.findMany({
+          where: { runStepId: firstStep.id, type: "STEP_EXECUTION", status: { not: "DONE" } },
+          select: { userId: true },
+        }).then((ts) => new Set(ts.map((t) => t.userId)));
+
+        const newAssignees = firstFlowStep.assignees.filter((a) => !existingUserIds.has(a.userId));
+        if (newAssignees.length > 0) {
+          await prisma.task.createMany({
+            data: newAssignees.map((a) => ({
+              tenantId,
+              userId: a.userId,
+              type: "STEP_EXECUTION" as const,
+              title: `Voer stap uit: ${firstStep.title}`,
+              runStepId: firstStep.id,
+              status: "OPEN" as const,
+            })),
           });
-          if (!existing) {
-            await prisma.task.create({
-              data: {
-                tenantId,
-                userId: assignee.userId,
-                type: "STEP_EXECUTION",
-                title: `Voer stap uit: ${firstStep.title}`,
-                runStepId: firstStep.id,
-                status: "OPEN",
-              },
-            });
-            createdTasks++;
-          }
+          createdTasks += newAssignees.length;
         }
       }
     }

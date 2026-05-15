@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { z } from "zod";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth();
@@ -32,21 +33,28 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return NextResponse.json(run);
 }
 
+const patchSchema = z.object({
+  status: z.enum(["DRAFT", "IN_PROGRESS", "COMPLETED", "ACCEPTED", "REJECTED"]),
+});
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const result = await requireTenantAuth();
+  const result = await requireTenantAuth(["TENANT_ADMIN", "SCRIPT_WRITER"]);
   if ("error" in result) return result.error;
   const { tenantId, user } = result.context;
   const { id } = await params;
   const body = await req.json();
 
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Ongeldige status" }, { status: 400 });
+
   const updateData: Record<string, unknown> = {};
-  if (body.status) {
-    updateData.status = body.status;
-    if (body.status === "IN_PROGRESS") {
+  if (parsed.data.status) {
+    updateData.status = parsed.data.status;
+    if (parsed.data.status === "IN_PROGRESS") {
       updateData.startedAt = new Date();
       updateData.startedById = user.id;
     }
-    if (body.status === "COMPLETED") {
+    if (parsed.data.status === "COMPLETED") {
       updateData.completedAt = new Date();
     }
   }
@@ -54,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   await prisma.testRun.updateMany({ where: { id, tenantId }, data: updateData });
 
   // When run starts, create STEP_EXECUTION tasks for first step's assignees
-  if (body.status === "IN_PROGRESS") {
+  if (parsed.data.status === "IN_PROGRESS") {
     const firstStep = await prisma.runStep.findFirst({
       where: { runId: id, tenantId },
       include: { assignees: true },

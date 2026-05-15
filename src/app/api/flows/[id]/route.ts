@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { z } from "zod";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth();
@@ -31,6 +32,14 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return NextResponse.json(flow);
 }
 
+const patchSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  status: z.enum(["ACTIVE", "CLOSED"]).optional(),
+  scheduledStart: z.string().nullable().optional(),
+  scheduledEnd: z.string().nullable().optional(),
+});
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth(["TENANT_ADMIN", "SCRIPT_WRITER"]);
   if ("error" in result) return result.error;
@@ -38,8 +47,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json();
 
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Ongeldige invoer" }, { status: 400 });
+
+  // Verify ownership before any cascade operations
+  const flow = await prisma.flow.findFirst({ where: { id, tenantId } });
+  if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   // Afsluiten: verwijder alle open taken gekoppeld aan runs van deze flow
-  if (body.status === "CLOSED") {
+  if (parsed.data.status === "CLOSED") {
     const versions = await prisma.flowVersion.findMany({ where: { flowId: id }, select: { id: true } });
     const versionIds = versions.map((v) => v.id);
     const runs = await prisma.testRun.findMany({ where: { flowVersionId: { in: versionIds } }, select: { id: true } });
@@ -50,11 +66,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const data: Record<string, unknown> = {};
-  if (body.name !== undefined) data.name = body.name;
-  if (body.description !== undefined) data.description = body.description;
-  if (body.status !== undefined) data.status = body.status;
-  if (body.scheduledStart !== undefined) data.scheduledStart = body.scheduledStart ? new Date(body.scheduledStart) : null;
-  if (body.scheduledEnd !== undefined) data.scheduledEnd = body.scheduledEnd ? new Date(body.scheduledEnd) : null;
+  if (parsed.data.name !== undefined) data.name = parsed.data.name;
+  if (parsed.data.description !== undefined) data.description = parsed.data.description;
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.scheduledStart !== undefined) data.scheduledStart = parsed.data.scheduledStart ? new Date(parsed.data.scheduledStart) : null;
+  if (parsed.data.scheduledEnd !== undefined) data.scheduledEnd = parsed.data.scheduledEnd ? new Date(parsed.data.scheduledEnd) : null;
 
   await prisma.flow.updateMany({ where: { id, tenantId }, data });
   return NextResponse.json({ success: true });

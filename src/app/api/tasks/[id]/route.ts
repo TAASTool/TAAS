@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { z } from "zod";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth();
@@ -36,6 +37,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return NextResponse.json(task);
 }
 
+const patchSchema = z.object({
+  status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]),
+});
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth();
   if ("error" in result) return result.error;
@@ -43,9 +48,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json();
 
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Ongeldige status" }, { status: 400 });
+
   await prisma.task.updateMany({
     where: { id, tenantId, userId: user.id },
-    data: { status: body.status },
+    data: { status: parsed.data.status },
   });
   return NextResponse.json({ success: true });
 }
