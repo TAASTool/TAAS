@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { auth } from "../../../../auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { STATUS_COLORS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, TASK_TYPE_LABELS, formatDateTime } from "@/lib/utils";
+import { STATUS_COLORS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, TASK_TYPE_LABELS, PROJECT_STATUS_LABELS, formatDateTime } from "@/lib/utils";
 import { HelpButton } from "@/components/HelpButton";
 
 export default async function DashboardPage() {
@@ -206,7 +206,7 @@ export default async function DashboardPage() {
                   <div className="font-medium text-slate-900 text-sm">{p.name}</div>
                   <div className="text-xs text-slate-400 mt-0.5">{p.phases.length} fase{p.phases.length !== 1 ? "s" : ""}</div>
                 </div>
-                <span className={`badge ${STATUS_COLORS[p.status]}`}>{p.status}</span>
+                <span className={`badge ${STATUS_COLORS[p.status]}`}>{PROJECT_STATUS_LABELS[p.status] ?? p.status}</span>
               </Link>
             ))}
           </div>

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { STATUS_COLORS, formatDate } from "@/lib/utils";
+import { STATUS_COLORS, PROJECT_STATUS_LABELS, formatDate } from "@/lib/utils";
 import { HelpButton } from "@/components/HelpButton";
 
 export default function ProjectsPage() {
@@ -111,7 +111,7 @@ export default function ProjectsPage() {
                   )}
                 </div>
               </div>
-              <span className={`badge ${STATUS_COLORS[p.status]} shrink-0`}>{p.status}</span>
+              <span className={`badge ${STATUS_COLORS[p.status]} shrink-0`}>{PROJECT_STATUS_LABELS[p.status] ?? p.status}</span>
             </div>
           </Link>
         ))}

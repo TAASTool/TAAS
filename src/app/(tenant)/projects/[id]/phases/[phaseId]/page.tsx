@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { STATUS_COLORS, PHASE_DESCRIPTIONS, formatDate } from "@/lib/utils";
+import { STATUS_COLORS, PHASE_DESCRIPTIONS, PHASE_STATUS_LABELS, RUN_STATUS_LABELS, formatDate, todayISO, daysFromNowISO } from "@/lib/utils";
 
 export default function PhasePage() {
   const { id, phaseId } = useParams<{ id: string; phaseId: string }>();
@@ -329,12 +329,12 @@ export default function PhasePage() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{PHASE_DESCRIPTIONS[phase.name]}{phase.title ? ` — ${phase.title}` : ""}</h1>
               <div className="flex items-center gap-3 mt-1">
-                <span className={`badge ${STATUS_COLORS[phase.status]}`}>{phase.status}</span>
+                <span className={`badge ${STATUS_COLORS[phase.status]}`}>{PHASE_STATUS_LABELS[phase.status] ?? phase.status}</span>
                 <button
                   onClick={() => {
                     setPhaseDatesForm({
-                      startDate: phase.startDate ? new Date(phase.startDate).toISOString().split("T")[0] : "",
-                      endDate: phase.endDate ? new Date(phase.endDate).toISOString().split("T")[0] : "",
+                      startDate: phase.startDate ? new Date(phase.startDate).toISOString().split("T")[0] : todayISO(),
+                      endDate: phase.endDate ? new Date(phase.endDate).toISOString().split("T")[0] : daysFromNowISO(30),
                     });
                     setShowPhaseDates(true);
                   }}
@@ -545,8 +545,8 @@ export default function PhasePage() {
                         onClick={() => {
                           setShowFlowDates({ flow });
                           setFlowDatesForm({
-                            scheduledStart: flow.scheduledStart ? new Date(flow.scheduledStart).toISOString().split("T")[0] : "",
-                            scheduledEnd: flow.scheduledEnd ? new Date(flow.scheduledEnd).toISOString().split("T")[0] : "",
+                            scheduledStart: flow.scheduledStart ? new Date(flow.scheduledStart).toISOString().split("T")[0] : todayISO(),
+                            scheduledEnd: flow.scheduledEnd ? new Date(flow.scheduledEnd).toISOString().split("T")[0] : daysFromNowISO(14),
                           });
                         }}
                         title="Planning instellen"
@@ -734,7 +734,7 @@ export default function PhasePage() {
                               <span className="ml-2 text-xs text-slate-400">{run.flowVersion?.flow?.name}</span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className={`badge ${STATUS_COLORS[run.status]}`}>{run.status}</span>
+                              <span className={`badge ${STATUS_COLORS[run.status]}`}>{RUN_STATUS_LABELS[run.status] ?? run.status}</span>
                               <Link href={`/runs/${run.id}`} className="text-xs text-primary-600 hover:underline">Openen →</Link>
                             </div>
                           </div>

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { STATUS_COLORS, IMPACT_COLORS, ISSUE_TYPE_LABELS, ISSUE_IMPACT_LABELS, formatDateTime } from "@/lib/utils";
+import { STATUS_COLORS, IMPACT_COLORS, ISSUE_TYPE_LABELS, ISSUE_IMPACT_LABELS, ISSUE_STATUS_LABELS, RUN_STATUS_LABELS, STEP_STATUS_LABELS, formatDateTime } from "@/lib/utils";
 
 export default function RunPage() {
   const { id } = useParams<{ id: string }>();
@@ -117,7 +117,7 @@ export default function RunPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{run.name}</h1>
           <p className="text-slate-500 text-sm">{flow.name} — {run.flowVersion.version}</p>
           <div className="flex items-center gap-3 mt-2">
-            <span className={`badge ${STATUS_COLORS[run.status]}`}>{run.status.replace("_", " ")}</span>
+            <span className={`badge ${STATUS_COLORS[run.status]}`}>{RUN_STATUS_LABELS[run.status] ?? run.status}</span>
           </div>
         </div>
         {run.status === "DRAFT" && (
@@ -190,7 +190,7 @@ export default function RunPage() {
                         )}
                       </div>
                       <div className="ml-4 flex gap-2">
-                        <span className={`badge ${STATUS_COLORS[step.status]}`}>{step.status.replace("_", " ")}</span>
+                        <span className={`badge ${STATUS_COLORS[step.status]}`}>{STEP_STATUS_LABELS[step.status] ?? step.status}</span>
                       </div>
                     </div>
 
@@ -376,7 +376,7 @@ export default function RunPage() {
                       >
                         <span className={`badge border ${IMPACT_COLORS[issue.impact]} text-xs`}>{ISSUE_IMPACT_LABELS[issue.impact]}</span>
                         <span className="text-sm text-slate-700">{issue.title}</span>
-                        <span className={`badge ${STATUS_COLORS[issue.status]} ml-auto text-xs`}>{issue.status.replace("_", " ")}</span>
+                        <span className={`badge ${STATUS_COLORS[issue.status]} ml-auto text-xs`}>{ISSUE_STATUS_LABELS[issue.status] ?? issue.status}</span>
                       </Link>
                     ))}
                   </div>

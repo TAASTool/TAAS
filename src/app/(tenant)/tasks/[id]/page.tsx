@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { STATUS_COLORS, IMPACT_COLORS, ISSUE_TYPE_LABELS, ISSUE_IMPACT_LABELS, formatDateTime } from "@/lib/utils";
+import { STATUS_COLORS, IMPACT_COLORS, ISSUE_TYPE_LABELS, ISSUE_IMPACT_LABELS, ISSUE_STATUS_LABELS, STEP_STATUS_LABELS, formatDateTime } from "@/lib/utils";
 import { AttachmentUploader, type AttachmentMeta } from "@/components/AttachmentUploader";
 
 export default function TaskDetailPage() {
@@ -113,7 +113,7 @@ export default function TaskDetailPage() {
             )}
             <div>
               <h1 className="text-lg font-bold text-slate-900">{step.title}</h1>
-              <span className={`badge text-xs ${STATUS_COLORS[step.status]}`}>{step.status.replace("_", " ")}</span>
+              <span className={`badge text-xs ${STATUS_COLORS[step.status]}`}>{STEP_STATUS_LABELS[step.status] ?? step.status}</span>
             </div>
           </div>
 
@@ -142,7 +142,7 @@ export default function TaskDetailPage() {
               >
                 <span className={`badge border ${IMPACT_COLORS[issue.impact]} text-xs`}>{ISSUE_IMPACT_LABELS[issue.impact]}</span>
                 <span className="text-sm text-slate-700 flex-1">{issue.title}</span>
-                <span className={`badge ${STATUS_COLORS[issue.status]} text-xs`}>{issue.status.replace("_", " ")}</span>
+                <span className={`badge ${STATUS_COLORS[issue.status]} text-xs`}>{ISSUE_STATUS_LABELS[issue.status] ?? issue.status}</span>
               </Link>
             ))}
           </div>
@@ -157,7 +157,7 @@ export default function TaskDetailPage() {
 
       {stepIsDone ? (
         <div className="card p-4 text-center text-sm text-slate-500">
-          Deze stap is al afgerond ({step?.status}). Je hoeft niets meer te doen.
+          Deze stap is al afgerond ({STEP_STATUS_LABELS[step?.status ?? ""] ?? step?.status}). Je hoeft niets meer te doen.
         </div>
       ) : (
         <div className="space-y-4">

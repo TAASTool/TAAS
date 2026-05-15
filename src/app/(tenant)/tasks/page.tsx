@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { STATUS_COLORS, TASK_TYPE_LABELS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, formatDateTime } from "@/lib/utils";
+import { STATUS_COLORS, TASK_TYPE_LABELS, TASK_STATUS_LABELS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, formatDateTime } from "@/lib/utils";
 import { HelpButton } from "@/components/HelpButton";
 
 export default function TasksPage() {
@@ -48,7 +48,7 @@ export default function TasksPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{TASK_TYPE_LABELS[task.type]}</span>
-                      <span className={`badge ${STATUS_COLORS[task.status]}`}>{task.status}</span>
+                      <span className={`badge ${STATUS_COLORS[task.status]}`}>{TASK_STATUS_LABELS[task.status] ?? task.status}</span>
                     </div>
                     <h3 className="font-medium text-slate-900">{task.title}</h3>
                     {task.description && <p className="text-sm text-slate-500 mt-0.5">{task.description}</p>}
@@ -70,7 +70,7 @@ export default function TasksPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{TASK_TYPE_LABELS[task.type]}</span>
-                    <span className={`badge ${STATUS_COLORS[task.status]}`}>{task.status}</span>
+                    <span className={`badge ${STATUS_COLORS[task.status]}`}>{TASK_STATUS_LABELS[task.status] ?? task.status}</span>
                   </div>
                   <h3 className="font-medium text-slate-900">{task.title}</h3>
                   {project && (

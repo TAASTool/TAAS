@@ -92,6 +92,55 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   QUESTION: "Vraag beantwoorden",
 };
 
+export const PROJECT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Actief",
+  COMPLETED: "Afgerond",
+  ARCHIVED: "Gearchiveerd",
+};
+
+export const PHASE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Concept",
+  ACTIVE: "Actief",
+  COMPLETED: "Afgerond",
+  ACCEPTED: "Geaccepteerd",
+  REJECTED: "Afgekeurd",
+};
+
+export const FLOW_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Actief",
+  CLOSED: "Gesloten",
+};
+
+export const RUN_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Concept",
+  IN_PROGRESS: "Bezig",
+  COMPLETED: "Afgerond",
+  ACCEPTED: "Geaccepteerd",
+  REJECTED: "Afgekeurd",
+};
+
+export const STEP_STATUS_LABELS: Record<string, string> = {
+  PENDING: "In wacht",
+  IN_PROGRESS: "Bezig",
+  PASSED: "Geslaagd",
+  FAILED: "Mislukt",
+  BLOCKED: "Geblokkeerd",
+};
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "Bezig",
+  DONE: "Afgerond",
+};
+
+export function todayISO(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+export function daysFromNowISO(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+}
+
 // SLA thresholds in days per impact level
 export const SLA_DAYS: Record<string, number> = {
   CRITICAL: 1,

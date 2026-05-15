@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { STATUS_COLORS, PHASE_DESCRIPTIONS, formatDate } from "@/lib/utils";
+import { STATUS_COLORS, PHASE_DESCRIPTIONS, PROJECT_STATUS_LABELS, PHASE_STATUS_LABELS, formatDate, todayISO, daysFromNowISO } from "@/lib/utils";
 import type { Project, TestPhase, Flow } from "@/types";
 
 const PHASE_ORDER = ["FAT", "GAT", "PAT"] as const;
@@ -85,8 +85,8 @@ export default function ProjectPage() {
   function openEditDates(phase: TestPhase) {
     setEditDates({
       phaseId: phase.id,
-      startDate: phase.startDate ? new Date(phase.startDate).toISOString().split("T")[0] : "",
-      endDate: phase.endDate ? new Date(phase.endDate).toISOString().split("T")[0] : "",
+      startDate: phase.startDate ? new Date(phase.startDate).toISOString().split("T")[0] : todayISO(),
+      endDate: phase.endDate ? new Date(phase.endDate).toISOString().split("T")[0] : daysFromNowISO(30),
     });
   }
 
@@ -106,7 +106,7 @@ export default function ProjectPage() {
           <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
           {project.description && <p className="text-slate-500 text-sm mt-1">{project.description}</p>}
           <div className="flex items-center gap-3 mt-3">
-            <span className={`badge ${STATUS_COLORS[project.status]}`}>{project.status}</span>
+            <span className={`badge ${STATUS_COLORS[project.status]}`}>{PROJECT_STATUS_LABELS[project.status] ?? project.status}</span>
             <span className="text-xs text-slate-400">Aangemaakt {formatDate(project.createdAt)}</span>
           </div>
         </div>
@@ -171,7 +171,7 @@ export default function ProjectPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h2 className="font-semibold text-lg mb-2">Fase afsluiten</h2>
-            <p className="text-slate-500 text-sm mb-4">Weet je zeker dat je fase <strong>{confirmClose.label}</strong> wilt afsluiten? De status wordt gezet op COMPLETED.</p>
+            <p className="text-slate-500 text-sm mb-4">Weet je zeker dat je fase <strong>{confirmClose.label}</strong> wilt afsluiten? De status wordt gezet op Afgerond.</p>
             <div className="flex gap-3">
               <button onClick={() => closePhase(confirmClose.phaseId)} className="btn-primary flex-1">Afsluiten</button>
               <button onClick={() => setConfirmClose(null)} className="btn-secondary flex-1">Annuleren</button>
@@ -256,7 +256,7 @@ export default function ProjectPage() {
                           <span className="text-xs text-slate-400">{progressPct}%</span>
                         </div>
                       )}
-                      <span className={`badge ${STATUS_COLORS[phase.status]}`}>{phase.status}</span>
+                      <span className={`badge ${STATUS_COLORS[phase.status]}`}>{PHASE_STATUS_LABELS[phase.status] ?? phase.status}</span>
                       <svg className="w-4 h-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
