@@ -10,6 +10,6 @@ export async function logAudit(
   after?: object | null,
 ) {
   await prisma.auditLog.create({
-    data: { tenantId, userId, action, entity, entityId, before, after },
+    data: { tenantId, userId, action, entity, entityId, before: before ?? undefined, after: after ?? undefined },
   });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 import {
   generateVoortgangsrapport,
@@ -67,54 +68,60 @@ export async function POST(req: NextRequest) {
 
   const settings = await prisma.tenantSettings.findUnique({ where: { tenantId } });
 
-  let pdfBuffer: Buffer;
-  let filename: string;
+  let pdfBuffer!: Buffer;
+  let filename!: string;
 
   const settingsData = {
     orgName: settings?.orgName ?? null,
     logoBase64: settings?.logoBase64 ?? null,
   };
 
-  if (
-    parsed.data.type === "VOORTGANGSRAPPORT" ||
-    parsed.data.type === "OPLEVERVERSLAG" ||
-    parsed.data.type === "PHASE_REPORT" ||
-    parsed.data.type === "GONOGO_SUMMARY"
-  ) {
-    const phase = await fetchPhase(parsed.data.entityId, tenantId);
-    if (!phase) return NextResponse.json({ error: "Fase niet gevonden" }, { status: 404 });
+  try {
+    if (
+      parsed.data.type === "VOORTGANGSRAPPORT" ||
+      parsed.data.type === "OPLEVERVERSLAG" ||
+      parsed.data.type === "PHASE_REPORT" ||
+      parsed.data.type === "GONOGO_SUMMARY"
+    ) {
+      const phase = await fetchPhase(parsed.data.entityId, tenantId);
+      if (!phase) return NextResponse.json({ error: "Fase niet gevonden" }, { status: 404 });
 
-    const criteria = (phase.project as any).goLiveCriteria ?? null;
+      const criteria = (phase.project as any).goLiveCriteria ?? null;
 
-    if (parsed.data.type === "VOORTGANGSRAPPORT" || parsed.data.type === "PHASE_REPORT") {
-      pdfBuffer = await generateVoortgangsrapport(phase, settingsData, criteria);
-      filename = `voortgangsrapport-${phase.name}-${formatFilename()}.pdf`;
-    } else if (parsed.data.type === "OPLEVERVERSLAG") {
-      pdfBuffer = await generateOpleververslag(phase, settingsData, criteria);
-      filename = `opleververslag-${phase.name}-${formatFilename()}.pdf`;
-    } else {
-      pdfBuffer = await generateGoNoGoReport(phase);
-      filename = `gonogo-${phase.name}-${formatFilename()}.pdf`;
-    }
-  } else if (parsed.data.type === "ISSUE_LOG") {
-    const issues = await prisma.issue.findMany({
-      where: { tenantId, runStep: { run: { projectId: parsed.data.entityId } } },
-      include: {
-        createdBy: { select: { name: true } },
-        comments: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
-        runStep: {
-          include: {
-            run: { include: { flowVersion: { include: { flow: true } } } },
+      if (parsed.data.type === "VOORTGANGSRAPPORT" || parsed.data.type === "PHASE_REPORT") {
+        pdfBuffer = await generateVoortgangsrapport(phase, settingsData, criteria);
+        filename = `voortgangsrapport-${phase.name}-${formatFilename()}.pdf`;
+      } else if (parsed.data.type === "OPLEVERVERSLAG") {
+        pdfBuffer = await generateOpleververslag(phase, settingsData, criteria);
+        filename = `opleververslag-${phase.name}-${formatFilename()}.pdf`;
+      } else {
+        pdfBuffer = await generateGoNoGoReport(phase);
+        filename = `gonogo-${phase.name}-${formatFilename()}.pdf`;
+      }
+    } else if (parsed.data.type === "ISSUE_LOG") {
+      const issues = await prisma.issue.findMany({
+        where: { tenantId, runStep: { run: { projectId: parsed.data.entityId } } },
+        include: {
+          createdBy: { select: { name: true } },
+          comments: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
+          runStep: {
+            include: {
+              run: { include: { flowVersion: { include: { flow: true } } } },
+            },
           },
         },
-      },
-      orderBy: [{ impact: "asc" }, { createdAt: "desc" }],
-    });
+        orderBy: [{ impact: "asc" }, { createdAt: "desc" }],
+      });
 
-    pdfBuffer = await generateIssueLogReport(issues, parsed.data.entityName || "Project");
-    filename = `issue-log-${formatFilename()}.pdf`;
-  } else {
-    return NextResponse.json({ error: "Rapporttype niet geïmplementeerd" }, { status: 400 });
+      pdfBuffer = await generateIssueLogReport(issues, parsed.data.entityName || "Project");
+      filename = `issue-log-${formatFilename()}.pdf`;
+    } else {
+      return NextResponse.json({ error: "Rapporttype niet geïmplementeerd" }, { status: 400 });
+    }
+  } catch (err) {
+    logger.error(err, "PDF generation failed");
+    const message = err instanceof Error ? err.message : "Onbekende fout bij genereren PDF";
+    return NextResponse.json({ error: `PDF genereren mislukt: ${message}` }, { status: 500 });
   }
 
   await prisma.reportExport.create({

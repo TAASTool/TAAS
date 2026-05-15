@@ -12,7 +12,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddPhase, setShowAddPhase] = useState(false);
-  const [phaseForm, setPhaseForm] = useState<{ name: string; title: string; order: number }>({ name: "FAT", title: "", order: 0 });
+  const [phaseForm, setPhaseForm] = useState<{ name: "FAT" | "GAT" | "PAT"; title: string; order: number }>({ name: "FAT", title: "", order: 0 });
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ phaseId: string; label: string } | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ phaseId: string; label: string } | null>(null);
@@ -23,8 +23,9 @@ export default function ProjectPage() {
 
   async function load() {
     const res = await fetch(`/api/projects/${id}`);
+    if (!res.ok) { setProject(null); setLoading(false); return; }
     const data = await res.json();
-    setProject(data);
+    setProject(data.id ? data : null);
     setLoading(false);
   }
 
@@ -90,7 +91,7 @@ export default function ProjectPage() {
   }
 
   if (loading) return <div className="p-8 text-slate-500">Laden...</div>;
-  if (!project || project.error) return <div className="p-8 text-slate-500">Project niet gevonden</div>;
+  if (!project) return <div className="p-8 text-slate-500">Project niet gevonden</div>;
 
   return (
     <div className="p-8">
@@ -123,7 +124,7 @@ export default function ProjectPage() {
             <form onSubmit={addPhase} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Type</label>
-                <select className="input" value={phaseForm.name} onChange={e => setPhaseForm({ ...phaseForm, name: e.target.value })}>
+                <select className="input" value={phaseForm.name} onChange={e => setPhaseForm({ ...phaseForm, name: e.target.value as "FAT" | "GAT" | "PAT" })}>
                   {PHASE_ORDER.map(ph => (
                     <option key={ph} value={ph}>{ph} — {PHASE_DESCRIPTIONS[ph]}</option>
                   ))}
@@ -195,7 +196,7 @@ export default function ProjectPage() {
 
       {/* Phases */}
       <div className="space-y-4">
-        {project.phases.length === 0 ? (
+        {(project.phases ?? []).length === 0 ? (
           <div className="card p-12 text-center">
             <div className="text-slate-400 text-sm">Nog geen testfases. Voeg FAT, GAT of PAT toe.</div>
           </div>
@@ -206,8 +207,8 @@ export default function ProjectPage() {
               return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
             })
             .map((phase: TestPhase) => {
-              const progressPct = phase.stepTotal > 0
-                ? Math.round((phase.stepDone / phase.stepTotal) * 100)
+              const progressPct = (phase.stepTotal ?? 0) > 0
+                ? Math.round(((phase.stepDone ?? 0) / (phase.stepTotal ?? 1)) * 100)
                 : null;
 
               return (
@@ -237,12 +238,12 @@ export default function ProjectPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       {/* KPI badges */}
-                      {phase.openTaskCount > 0 && (
+                      {(phase.openTaskCount ?? 0) > 0 && (
                         <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-medium">
                           {phase.openTaskCount} taak{phase.openTaskCount !== 1 ? "en" : ""}
                         </span>
                       )}
-                      {phase.openIssueCount > 0 && (
+                      {(phase.openIssueCount ?? 0) > 0 && (
                         <span className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded font-medium">
                           {phase.openIssueCount} issue{phase.openIssueCount !== 1 ? "s" : ""}
                         </span>
@@ -297,7 +298,7 @@ export default function ProjectPage() {
                   </div>
 
                   {/* Flows preview */}
-                  {phase.flows?.length > 0 && (
+                  {(phase.flows?.length ?? 0) > 0 && (
                     <div className="divide-y divide-slate-50">
                       {phase.flows?.slice(0, 3).map((flow: Flow) => {
                         const latestVersion = flow.versions?.[0];
@@ -318,9 +319,9 @@ export default function ProjectPage() {
                           </div>
                         );
                       })}
-                      {phase.flows.length > 3 && (
+                      {(phase.flows?.length ?? 0) > 3 && (
                         <div className="px-5 py-2 text-xs text-primary-600">
-                          +{phase.flows.length - 3} meer flows →
+                          +{(phase.flows?.length ?? 0) - 3} meer flows →
                         </div>
                       )}
                     </div>

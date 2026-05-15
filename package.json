@@ -18,7 +18,7 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^5.22.0",
-    "@react-pdf/renderer": "^3.4.4",
+    "@react-pdf/renderer": "^4.5.1",
     "@types/nodemailer": "^8.0.0",
     "@vercel/blob": "^2.3.3",
     "bcryptjs": "^2.4.3",
