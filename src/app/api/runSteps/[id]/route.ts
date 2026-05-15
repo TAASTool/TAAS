@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -103,9 +104,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await prisma.runStep.updateMany({ where: { id, tenantId }, data: stepUpdate });
     }
 
-    // Close this user's open task for the step
+    // Close this user's own tasks (STEP_EXECUTION and RETEST) for this step
     await prisma.task.updateMany({
-      where: { runStepId: id, userId: user.id, type: "STEP_EXECUTION", status: { not: "DONE" } },
+      where: { runStepId: id, userId: user.id, type: { in: ["STEP_EXECUTION", "RETEST"] }, status: { not: "DONE" } },
       data: { status: "DONE" },
     });
 
@@ -115,7 +116,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const isFirstCompletion = completedAssignees.length === 1;
 
     if (isFirstCompletion) {
-      // First tester to complete: immediately advance the step
+      // First tester to complete: mark step terminal and advance run
       const finalStatus = parsed.data.status as TerminalStatus;
 
       await prisma.runStep.updateMany({
@@ -123,11 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         data: { status: finalStatus, doneById: user.id, doneAt: new Date() },
       });
 
-      // Close remaining open tasks for this step from other testers
-      await prisma.task.updateMany({
-        where: { runStepId: id, type: "STEP_EXECUTION", status: { not: "DONE" } },
-        data: { status: "DONE" },
-      });
+      // Other testers keep their own tasks open so they can still complete independently
 
       // Clear any pending retests on this step (hertest is done)
       await prisma.issue.updateMany({
@@ -156,13 +153,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       await advanceToNextStep(step.runId, step.order, tenantId);
       await checkAndFinalizeRun(step.runId);
-      // Close any open STEP_EXECUTION task for this user on this step
+      // Close this user's own tasks (STEP_EXECUTION and RETEST) for this step
       await prisma.task.updateMany({
-        where: { runStepId: id, userId: user.id, type: "STEP_EXECUTION", status: { not: "DONE" } },
+        where: { runStepId: id, userId: user.id, type: { in: ["STEP_EXECUTION", "RETEST"] }, status: { not: "DONE" } },
         data: { status: "DONE" },
       });
     }
   }
+
+  await logAudit(tenantId, user.id, "STEP_RESULT", "RunStep", id, { prevStatus: step.status }, parsed.data);
 
   return NextResponse.json({ success: true });
 }

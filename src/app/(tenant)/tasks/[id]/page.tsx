@@ -12,13 +12,12 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Step result form
   const [resultForm, setResultForm] = useState({ status: "PASSED", result: "", notes: "" });
   const [showResultForm, setShowResultForm] = useState(false);
 
-  // Issue form
   const [showIssueForm, setShowIssueForm] = useState(false);
   const [issueForm, setIssueForm] = useState({ title: "", description: "", type: "BUG", impact: "MEDIUM" });
+  const [issueSuccess, setIssueSuccess] = useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -44,13 +43,19 @@ export default function TaskDetailPage() {
   async function submitIssue() {
     if (!task?.runStep?.id || !issueForm.title || !issueForm.description) return;
     setSaving(true);
-    await fetch(`/api/runSteps/${task.runStep.id}/issues`, {
+    const res = await fetch(`/api/runSteps/${task.runStep.id}/issues`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(issueForm),
     });
     setSaving(false);
-    router.push("/tasks");
+    if (res.ok) {
+      setIssueForm({ title: "", description: "", type: "BUG", impact: "MEDIUM" });
+      setShowIssueForm(false);
+      setIssueSuccess(true);
+      setTimeout(() => setIssueSuccess(false), 4000);
+      await load();
+    }
   }
 
   if (loading) return <div className="p-8 text-slate-500">Laden...</div>;
@@ -62,12 +67,12 @@ export default function TaskDetailPage() {
   const stepIndex = run?.steps?.findIndex((s: any) => s.id === step?.id) ?? -1;
   const stepNumber = stepIndex >= 0 ? stepIndex + 1 : null;
 
-  const stepIsDone = step && ["PASSED", "FAILED", "BLOCKED"].includes(step.status);
+  const myAssignee = step?.assignees?.find((a: any) => a.userId === task.userId);
+  const stepIsDone = task.status === "DONE" || (myAssignee?.completedAt != null);
   const isRetest = task.type === "RETEST";
 
   return (
     <div className="p-8 max-w-2xl">
-      {/* Back */}
       <Link href="/tasks" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -75,14 +80,12 @@ export default function TaskDetailPage() {
         Mijn Taken
       </Link>
 
-      {/* Context breadcrumb */}
       {project && (
         <div className="text-xs text-slate-400 mb-4">
           {project.name} — {run?.flowVersion?.flow?.phase?.name} — {run?.name}
         </div>
       )}
 
-      {/* Retest banner */}
       {isRetest && task.issue && (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
           <div className="flex items-start gap-3">
@@ -96,7 +99,6 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Step card */}
       {step && (
         <div className="card p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
@@ -124,10 +126,9 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Existing issues on this step */}
       {step?.issues?.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">Eerder gemelde bevindingen</h2>
+          <h2 className="text-sm font-semibold text-slate-700 mb-2">Gemelde bevindingen op deze stap ({step.issues.length})</h2>
           <div className="space-y-2">
             {step.issues.map((issue: any) => (
               <Link
@@ -144,13 +145,70 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Actions */}
+      {issueSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-sm text-green-700 font-medium">
+          Bevinding gemeld. Je kunt nog een bevinding melden of het resultaat vastleggen.
+        </div>
+      )}
+
       {stepIsDone ? (
         <div className="card p-4 text-center text-sm text-slate-500">
-          Deze stap is al afgerond ({step.status}). Je hoeft niets meer te doen.
+          Deze stap is al afgerond ({step?.status}). Je hoeft niets meer te doen.
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Issue form — altijd bovenaan zodat tester eerst bevinding kan melden */}
+          {showIssueForm ? (
+            <div className="card p-5 border-red-200 bg-red-50/50 space-y-4">
+              <h2 className="font-semibold text-red-800">Bevinding melden</h2>
+              <input
+                className="input text-sm"
+                placeholder="Titel *"
+                value={issueForm.title}
+                onChange={(e) => setIssueForm({ ...issueForm, title: e.target.value })}
+              />
+              <textarea
+                className="input text-sm resize-none"
+                rows={4}
+                placeholder="Beschrijving van de bevinding *"
+                value={issueForm.description}
+                onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
+              />
+              <div className="flex gap-3">
+                <select className="input text-sm" value={issueForm.type} onChange={(e) => setIssueForm({ ...issueForm, type: e.target.value })}>
+                  <option value="BUG">Fout</option>
+                  <option value="WISH">Wens</option>
+                  <option value="BLOCKER">Blokkade</option>
+                </select>
+                <select className="input text-sm" value={issueForm.impact} onChange={(e) => setIssueForm({ ...issueForm, impact: e.target.value })}>
+                  <option value="CRITICAL">Kritiek</option>
+                  <option value="HIGH">Hoog</option>
+                  <option value="MEDIUM">Middel</option>
+                  <option value="LOW">Laag</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={submitIssue}
+                  disabled={saving || !issueForm.title || !issueForm.description}
+                  className="btn-danger text-sm"
+                >
+                  {saving ? "Melden..." : "Bevinding melden"}
+                </button>
+                <button onClick={() => setShowIssueForm(false)} className="btn-secondary text-sm">
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowIssueForm(true)}
+              className="w-full text-sm text-red-600 border border-red-200 px-4 py-3 rounded-xl hover:bg-red-50 transition-colors"
+            >
+              Bevinding melden
+            </button>
+          )}
+
           {/* Result form */}
           {showResultForm ? (
             <div className="card p-5 space-y-4">
@@ -190,11 +248,7 @@ export default function TaskDetailPage() {
                 onChange={(e) => setResultForm({ ...resultForm, notes: e.target.value })}
               />
               <div className="flex gap-2">
-                <button
-                  onClick={submitResult}
-                  disabled={saving}
-                  className="btn-primary"
-                >
+                <button onClick={submitResult} disabled={saving} className="btn-primary">
                   {saving ? "Opslaan..." : "Opslaan en terug"}
                 </button>
                 <button onClick={() => setShowResultForm(false)} className="btn-secondary">
@@ -204,62 +258,10 @@ export default function TaskDetailPage() {
             </div>
           ) : (
             <button
-              onClick={() => { setShowResultForm(true); setShowIssueForm(false); }}
+              onClick={() => setShowResultForm(true)}
               className="w-full btn-primary py-3 text-sm"
             >
               {isRetest ? "Hertest resultaat vastleggen" : "Resultaat vastleggen"}
-            </button>
-          )}
-
-          {/* Issue form */}
-          {showIssueForm ? (
-            <div className="card p-5 border-red-200 bg-red-50/50 space-y-4">
-              <h2 className="font-semibold text-red-800">Bevinding melden</h2>
-              <input
-                className="input text-sm"
-                placeholder="Titel *"
-                value={issueForm.title}
-                onChange={(e) => setIssueForm({ ...issueForm, title: e.target.value })}
-              />
-              <textarea
-                className="input text-sm resize-none"
-                rows={4}
-                placeholder="Beschrijving van de bevinding *"
-                value={issueForm.description}
-                onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
-              />
-              <div className="flex gap-3">
-                <select className="input text-sm" value={issueForm.type} onChange={(e) => setIssueForm({ ...issueForm, type: e.target.value })}>
-                  <option value="BUG">Fout</option>
-                  <option value="WISH">Wens</option>
-                  <option value="BLOCKER">Blokkade</option>
-                </select>
-                <select className="input text-sm" value={issueForm.impact} onChange={(e) => setIssueForm({ ...issueForm, impact: e.target.value })}>
-                  <option value="CRITICAL">Kritiek</option>
-                  <option value="HIGH">Hoog</option>
-                  <option value="MEDIUM">Middel</option>
-                  <option value="LOW">Laag</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={submitIssue}
-                  disabled={saving || !issueForm.title || !issueForm.description}
-                  className="btn-danger text-sm"
-                >
-                  {saving ? "Melden..." : "Bevinding melden en terug"}
-                </button>
-                <button onClick={() => setShowIssueForm(false)} className="btn-secondary text-sm">
-                  Annuleren
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => { setShowIssueForm(true); setShowResultForm(false); }}
-              className="w-full text-sm text-red-600 border border-red-200 px-4 py-3 rounded-xl hover:bg-red-50 transition-colors"
-            >
-              Bevinding melden
             </button>
           )}
         </div>

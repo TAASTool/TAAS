@@ -93,14 +93,15 @@ model TenantUser {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignedSteps    FlowStepAssignee[]
-  runStepAssignees RunStepAssignee[]
-  tasks            Task[]
-  issuesCreated    Issue[]            @relation("IssueCreator")
-  issueComments    IssueComment[]
-  auditLogs        AuditLog[]
-  reportExports    ReportExport[]
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedSteps     FlowStepAssignee[]
+  runStepAssignees  RunStepAssignee[]
+  tasks             Task[]
+  issuesCreated     Issue[]            @relation("IssueCreator")
+  issueComments     IssueComment[]
+  auditLogs         AuditLog[]
+  reportExports     ReportExport[]
+  goLiveCriteriaCreated GoLiveCriteria[]
 
   @@unique([tenantId, email])
 }
@@ -122,8 +123,9 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phases TestPhase[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phases        TestPhase[]
+  goLiveCriteria GoLiveCriteria?
 }
 
 enum ProjectType {
@@ -342,6 +344,7 @@ enum IssueStatus {
   QUESTION
   RESOLVED
   REJECTED
+  WITHDRAWN
 }
 
 enum IssueImpact {
@@ -438,4 +441,22 @@ enum ReportType {
   FLOW_REPORT
   ISSUE_LOG
   GONOGO_SUMMARY
+}
+
+model GoLiveCriteria {
+  id              String    @id @default(cuid())
+  tenantId        String
+  projectId       String    @unique
+  goLiveDate      DateTime?
+  goNoGoDate      DateTime?
+  maxCritical     Int?
+  maxHigh         Int?
+  maxMedium       Int?
+  maxLow          Int?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy TenantUser @relation(fields: [createdById], references: [id])
 }

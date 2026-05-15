@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: { createdBy: { select: { id: true, name: true } } },
   });
 
-  // Create task for functional manager
+  await logAudit(tenantId, user.id, "CREATE", "Issue", issue.id, null, parsed.data);
+
   const fmUsers = await prisma.tenantUser.findMany({
     where: { tenantId, roles: { has: "FUNCTIONAL_MANAGER" }, isActive: true },
   });

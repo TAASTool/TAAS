@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireTenantAuth } from "@/lib/api-helpers";
+import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  status: z.enum(["NEW", "IN_PROGRESS", "QUESTION", "RESOLVED", "REJECTED"]).optional(),
+  status: z.enum(["NEW", "IN_PROGRESS", "QUESTION", "RESOLVED", "REJECTED", "WITHDRAWN"]).optional(),
   impact: z.enum(["CRITICAL", "HIGH", "MEDIUM", "LOW"]).optional(),
   hasWorkaround: z.boolean().optional(),
   workaroundNote: z.string().optional(),
   businessAccepted: z.boolean().optional(),
   businessAcceptNote: z.string().optional(),
   retestRequired: z.boolean().optional(),
+  title: z.string().min(2).optional(),
+  description: z.string().min(1).optional(),
+  type: z.enum(["BUG", "WISH", "BLOCKER"]).optional(),
 });
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,39 +50,53 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const result = await requireTenantAuth();
   if ("error" in result) return result.error;
-  const { tenantId } = result.context;
+  const { tenantId, user } = result.context;
   const { id } = await params;
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  // Fetch current issue to detect status transitions
   const issue = await prisma.issue.findFirst({
     where: { id, tenantId },
-    include: {
-      runStep: {
-        include: { assignees: true },
-      },
-    },
+    include: { runStep: { include: { assignees: true } } },
   });
   if (!issue) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const isWithdrawing = parsed.data.status === "WITHDRAWN" && issue.status !== "WITHDRAWN";
   const isResolvingNow = parsed.data.status === "RESOLVED" && issue.status !== "RESOLVED";
 
+  // Tester kan alleen WITHDRAWN zetten op eigen bevinding
+  if (isWithdrawing) {
+    const isTester = user.roles.includes("TESTER");
+    const isOwnIssue = issue.createdById === user.id;
+    const isAdmin = user.roles.includes("TENANT_ADMIN");
+    const isFM = user.roles.includes("FUNCTIONAL_MANAGER");
+    if (!((isTester && isOwnIssue) || isAdmin || isFM)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  const before = { status: issue.status, impact: issue.impact, title: issue.title };
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (isResolvingNow) updateData.retestRequired = true;
 
   await prisma.issue.update({ where: { id }, data: updateData });
 
-  // When resolved: reset the step and create retest tasks
+  // Determine audit action
+  let action = "UPDATE";
+  if (isWithdrawing) action = "WITHDRAW";
+  else if (isResolvingNow) action = "RESOLVE";
+  else if (parsed.data.status === "REJECTED") action = "REJECT";
+
+  await logAudit(tenantId, user.id, action, "Issue", id, before, parsed.data);
+
   if (isResolvingNow && issue.runStepId) {
     await prisma.runStep.updateMany({
       where: { id: issue.runStepId, tenantId },
       data: { status: "IN_PROGRESS", doneAt: null },
     });
 
-    // Re-open assignee completions so they can retest
     await prisma.runStepAssignee.updateMany({
       where: { runStepId: issue.runStepId },
       data: { completedAt: null, completedStatus: null },
@@ -99,7 +117,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         })),
       });
     } else {
-      // No assignees: retest task goes to the issue reporter
       await prisma.task.create({
         data: {
           tenantId,

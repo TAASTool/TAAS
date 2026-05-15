@@ -54,6 +54,7 @@ export const STATUS_COLORS: Record<string, string> = {
   RESOLVED: "bg-green-100 text-green-700",
   OPEN: "bg-blue-100 text-blue-700",
   DONE: "bg-green-100 text-green-700",
+  WITHDRAWN: "bg-gray-100 text-gray-500",
 };
 
 export const IMPACT_COLORS: Record<string, string> = {
@@ -82,6 +83,7 @@ export const ISSUE_STATUS_LABELS: Record<string, string> = {
   QUESTION: "Vraag",
   RESOLVED: "Opgelost",
   REJECTED: "Afgewezen",
+  WITHDRAWN: "Ingetrokken",
 };
 
 export const TASK_TYPE_LABELS: Record<string, string> = {
