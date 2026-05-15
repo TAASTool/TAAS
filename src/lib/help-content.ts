@@ -194,6 +194,28 @@ export const HELP: Record<string, HelpContent> = {
       },
     ],
   },
+  reports: {
+    pageTitle: "Rapportages",
+    intro: "Genereer professionele PDF-rapportages voor stuurgroep en formele oplevering.",
+    sections: [
+      {
+        title: "Voortgangsrapport",
+        body: "Het voortgangsrapport is bedoeld als tussentijdse update voor de stuurgroep. Het bevat KPI-kaarten, testvoortgang per flow met visuele voortgangsbalk, openstaande bevindingen gesorteerd op impact, en de actuele go-live criteria status.",
+      },
+      {
+        title: "Opleververslag",
+        body: "Het opleververslag is de formele eindrapportage van een testfase. Het bevat alle testresultaten per stap (inclusief tester en datum), een volledige bevindingslog, go/no-go beoordeling met motivering, en een handtekeningpagina voor akkoord.",
+      },
+      {
+        title: "Issue Log PDF",
+        body: "De issue log is een compleet overzicht van alle bevindingen op projectniveau, gesorteerd op impact. Handig als bijlage bij de oplevertelling of voor interne audit.",
+      },
+      {
+        title: "Branding",
+        body: "Alle rapporten bevatten automatisch het logo en de organisatienaam zoals ingesteld bij onboarding of via de zijbalk. Zorg dat deze correct zijn ingesteld voordat je een rapport genereert.",
+      },
+    ],
+  },
   settings: {
     pageTitle: "Instellingen",
     intro: "Hier kun je de organisatie-instellingen aanpassen die tijdens onboarding zijn ingevoerd.",
