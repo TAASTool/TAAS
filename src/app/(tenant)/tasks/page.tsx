@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { STATUS_COLORS, TASK_TYPE_LABELS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, formatDateTime } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -91,6 +92,7 @@ export default function TasksPage() {
           );
         })}
       </div>
+      <HelpButton pageKey="tasks" />
     </div>
   );
 }

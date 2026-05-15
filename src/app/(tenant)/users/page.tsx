@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { STATUS_COLORS } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 const ROLE_LABELS: Record<string, string> = {
   TENANT_ADMIN: "Beheerder",
@@ -16,14 +17,23 @@ export default function UsersPage() {
   const [form, setForm] = useState({ name: "", email: "", password: "", roles: ["TESTER"] as string[] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [emailDomain, setEmailDomain] = useState<string | null>(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadSettings(); }, []);
 
   async function load() {
     const res = await fetch("/api/users");
     const data = await res.json();
     setUsers(Array.isArray(data) ? data : []);
     setLoading(false);
+  }
+
+  async function loadSettings() {
+    const res = await fetch("/api/settings");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.emailDomain) setEmailDomain(data.emailDomain);
+    }
   }
 
   async function create(e: React.FormEvent) {
@@ -88,7 +98,23 @@ export default function UsersPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">E-mailadres *</label>
-                <input type="email" className="input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required placeholder="jan@organisatie.nl" />
+                <input
+                  type="email"
+                  className="input"
+                  value={form.email}
+                  onChange={e => setForm({...form, email: e.target.value})}
+                  required
+                  placeholder={emailDomain ? `naam@${emailDomain}` : "jan@organisatie.nl"}
+                />
+                {emailDomain && !form.email.includes("@") && form.email.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, email: prev.email + "@" + emailDomain }))}
+                    className="mt-1 text-xs text-primary-600 hover:text-primary-800"
+                  >
+                    + @{emailDomain} toevoegen
+                  </button>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Tijdelijk wachtwoord *</label>
@@ -150,6 +176,7 @@ export default function UsersPage() {
           ))}
         </div>
       </div>
+      <HelpButton pageKey="users" />
     </div>
   );
 }

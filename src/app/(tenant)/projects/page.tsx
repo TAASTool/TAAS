@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { STATUS_COLORS, formatDate } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -115,6 +116,7 @@ export default function ProjectsPage() {
           </Link>
         ))}
       </div>
+      <HelpButton pageKey="projects" />
     </div>
   );
 }

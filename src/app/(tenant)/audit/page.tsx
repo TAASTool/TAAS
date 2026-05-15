@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { formatDateTime } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE: "Aangemaakt",
@@ -151,6 +152,7 @@ export default function AuditPage() {
           ))}
         </div>
       )}
+      <HelpButton pageKey="audit" />
     </div>
   );
 }

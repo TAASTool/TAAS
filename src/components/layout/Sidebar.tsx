@@ -29,10 +29,12 @@ export function TenantSidebar({
   roles,
   userName,
   tenantName,
+  logoBase64,
 }: {
   roles: string[];
   userName: string;
   tenantName?: string;
+  logoBase64?: string | null;
 }) {
   const isAdmin = roles.includes("TENANT_ADMIN");
   const isScriptWriter = roles.includes("SCRIPT_WRITER");
@@ -104,14 +106,19 @@ export function TenantSidebar({
       {/* Logo */}
       <div className="px-4 py-5 border-b border-forest-900">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
+          {logoBase64 ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoBase64} alt="Logo" className="w-8 h-8 rounded-lg object-contain bg-white" />
+          ) : (
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+          )}
           <div>
-            <div className="text-white font-bold text-sm">TAAS</div>
-            {tenantName && <div className="text-forest-300 text-xs truncate max-w-[160px]">{tenantName}</div>}
+            <div className="text-white font-bold text-sm">{tenantName || "TAAS"}</div>
+            {tenantName && <div className="text-forest-300 text-xs truncate max-w-[140px]">Testbeheer</div>}
           </div>
         </div>
       </div>

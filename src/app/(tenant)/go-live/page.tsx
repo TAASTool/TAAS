@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 const IMPACTS = [
   { key: "CRITICAL", label: "Kritiek", color: "text-red-700 bg-red-50 border-red-200" },
@@ -254,6 +255,7 @@ export default function GoLivePage() {
           )}
         </>
       )}
+      <HelpButton pageKey="go-live" />
     </div>
   );
 }

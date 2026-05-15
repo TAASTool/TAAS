@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { STATUS_COLORS, IMPACT_COLORS, ISSUE_TYPE_LABELS, ISSUE_IMPACT_LABELS, ISSUE_STATUS_LABELS, formatDateTime } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 export default function IssuesPage() {
   const [issues, setIssues] = useState<any[]>([]);
@@ -100,6 +101,7 @@ export default function IssuesPage() {
           );
         })}
       </div>
+      <HelpButton pageKey="issues" />
     </div>
   );
 }

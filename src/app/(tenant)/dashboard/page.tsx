@@ -3,6 +3,7 @@ import { auth } from "../../../../auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { STATUS_COLORS, IMPACT_COLORS, ISSUE_IMPACT_LABELS, TASK_TYPE_LABELS, formatDateTime } from "@/lib/utils";
+import { HelpButton } from "@/components/HelpButton";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -96,11 +97,14 @@ export default async function DashboardPage() {
             </div>
           </div>
         )}
+        <HelpButton pageKey="dashboard" />
       </div>
     );
   }
 
   // ── Full dashboard (admin / FM / script writer) ────────────────────────────
+  const settings = await prisma.tenantSettings.findUnique({ where: { tenantId } });
+
   const [projects, openIssues, myTaskCount, criticalIssues] = await Promise.all([
     prisma.project.findMany({
       where: { tenantId, status: "ACTIVE" },
@@ -163,9 +167,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Welkom terug, {session!.user.name}</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-1">Welkom terug, {session!.user.name}</p>
+        </div>
+        {settings?.logoBase64 && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={settings.logoBase64} alt="Logo" className="h-12 w-auto object-contain" />
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -258,6 +268,7 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+      <HelpButton pageKey="dashboard" />
     </div>
   );
 }
